@@ -1,26 +1,26 @@
 const express = require('express');
 
 const Users = require('./userDb')
+const Posts = require('../posts/postDb')
 
 const router = express.Router();
 
-router.post('/', validateUser('name'), (req, res) => {
-  // do your magic!
-  Users.add(req.body)
-    .then(post => {
-      res.status(201).json(post)
+router.post('/', validateUserId, validateUser('name'), (req, res) => {
+  Users.insert(req.body)
+    .then(user => {
+      res.status(201).json(user)
     })
     .catch(error => {
       console.log(error);
-      res.status(500).json({
-        message: "error adding to posts"
+      res.status(400).json({
+        message: "missing required name field"
       })
     })
 });
 
-router.post('/:id/posts', validatePost('text'), (req, res) => {
-  // do your magic!
-  Users.add(req.body)
+router.post('/:id/posts', validateUserId, validatePost('text'), (req, res) => {
+  const comment = {...req.body, user_id: req.params.id}
+  Posts.insert(comment)
     .then(post => {
       res.status(201).json(post)
     })
@@ -33,8 +33,6 @@ router.post('/:id/posts', validatePost('text'), (req, res) => {
 });
 
 router.get('/', (req, res) => {
-  // do your magic!
-  console.log(req)
   Users.get()
     .then(users => {
       res.status(200).json({ headers: req.headers, users})
@@ -48,8 +46,7 @@ router.get('/', (req, res) => {
 });
 
 router.get('/:id', validateUserId, (req, res) => {
-  console.log(req.params)
-  Users.getUserPosts(req.params.id)
+  Users.getById(req.params.id)
     .then(posts => {
       res.status(200).json(posts)
     })
@@ -61,13 +58,18 @@ router.get('/:id', validateUserId, (req, res) => {
 });
 
 router.get('/:id/posts', validateUserId, (req, res) => {
-  // do your magic!
- 
-  res.status(200).json(req.user.post)
+  Users.getUserPosts(req.params.id)
+    .then(posts => {
+      res.status(200).json(posts)
+    })
+    .catch(error => {
+      console.log(error)
+      res.status(500).json({message: "error retrieving posts"})
+    })
+  
 });
 
 router.delete('/:id', validateUserId, (req, res) => {
-  // do your magic!
   Users.remove(req.params.id)
     .then(user => {
       if (user) {
@@ -84,8 +86,7 @@ router.delete('/:id', validateUserId, (req, res) => {
     })
 });
 
-router.put('/:id', validatePost('text'), (req, res) => {
-  // do your magic!
+router.put('/:id', validateUserId, (req, res) => {
   Users.update(req.params.id, req.body)
     .then(post => {
       if (post) {
@@ -103,7 +104,6 @@ router.put('/:id', validatePost('text'), (req, res) => {
 //custom middleware
 
 function validateUserId(req, res, next) {
-  // do your magic!
   Users.getById(req.params.id)
     .then(user => {
       if (user) {
@@ -123,18 +123,15 @@ function validateUserId(req, res, next) {
 
 function validateUser(prop) {
   return function (req, res, next) {
-    // do your magic!
     if (!req.body[prop]) {
       res.status(400).json({ message: "missing user data" })
     } else {
       next()
     }
   }
-  
 }
 
 function validatePost(prop) {
-  
   return function (req, res, next) {
     if (!req.body[prop]) {
       res.status(400).json({message: "missing post data"})
@@ -142,7 +139,6 @@ function validatePost(prop) {
       next()
     }
   }
-  
 }
 
 module.exports = router;
